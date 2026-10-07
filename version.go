@@ -265,6 +265,8 @@ func compareNumericIdentifiers(a, b string) int {
 	return strings.Compare(a, b)
 }
 
+// isNumericIdentifier reports whether s is a non-empty run of decimal
+// digits.
 func isNumericIdentifier(s string) bool {
 	if s == "" {
 		return false
@@ -277,10 +279,14 @@ func isNumericIdentifier(s string) bool {
 	return true
 }
 
+// versionToGitTag renders the Git tag for version by substituting the
+// placeholder in tagFormat.
 func versionToGitTag(version Version, tagFormat string) string {
 	return strings.Replace(tagFormat, versionTagFormatSubst, version.ToString(), 1)
 }
 
+// getCurrentVersionTag returns the most recent tag reachable from HEAD,
+// or an error explaining that the repository has no version tags yet.
 func getCurrentVersionTag() (string, error) {
 	currentVersionTagGitOutput, errOut, err := getCommandOutput(gitCommand, "describe", "--tags", "--abbrev=0")
 	if err != nil {
@@ -295,12 +301,16 @@ func getCurrentVersionTag() (string, error) {
 	return currentVersionTag, nil
 }
 
+// seemsNoTagsError reports whether errOut is the git describe failure
+// produced by a repository without tags.
 func seemsNoTagsError(errOut string) bool {
 	errOutLower := strings.ToLower(errOut)
 	subLower := "no names found, cannot describe anything"
 	return strings.Contains(errOutLower, subLower)
 }
 
+// getCurrentVersionByGitTag derives the current version from the most
+// recent Git tag according to versionTagFormat.
 func getCurrentVersionByGitTag(versionTagFormat string) (Version, error) {
 	// Get current version tag from Git
 	currentVersionTag, err := getCurrentVersionTag()
@@ -323,6 +333,9 @@ func getCurrentVersionByGitTag(versionTagFormat string) (Version, error) {
 	return currentVersion, nil
 }
 
+// extractVersionStringFromTag cuts the version out of currentVersionTag
+// using the placeholder in versionTagFormat and fails when the tag does
+// not match that format.
 func extractVersionStringFromTag(currentVersionTag, versionTagFormat string) (string, error) {
 	// Get index of the version placeholder
 	before, after, ok := strings.Cut(versionTagFormat, versionTagFormatSubst)

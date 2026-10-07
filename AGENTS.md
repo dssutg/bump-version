@@ -6,7 +6,7 @@
 - Semantic Versioning
 - Changelog generation
 - Conventional Commits validation
-- Git release commits and tags
+- Git release commits and annotated tags
 
 ## Language & Framework
 
@@ -17,7 +17,7 @@
 
 | Command | Description |
 |---------|-------------|
-| `bump-version` | Default command — bumps version, updates CHANGELOG, creates Git commit and tag |
+| `bump-version` | Default command — plans, confirms and applies the release (version, CHANGELOG, Git commit, annotated tag) |
 | `bump-version preview-changelog` | Show changelog without writing to file |
 | `bump-version add-hook` | Add Git pre-commit hook for commit message validation |
 | `bump-version remove-hook` | Remove Git pre-commit hook |
@@ -32,20 +32,32 @@
 
 **Options:**
 - `-config <filename>` — Use custom config file (default: `bump-version.cfg`)
-- `-force` — Suppress confirmation prompts
+- `-force` — Suppress confirmation prompts (overwrite prompts and the release confirmation; required for non-interactive releases)
+- `-dry-run` — (bump) Print the release plan and changelog, then exit without changing anything
+- `-type <major|minor|patch|prerelease>` — (bump) Force the release type instead of deriving it from commits
 
 ## Version Bumping Logic
 
 Based on Conventional Commits since last tag:
 1. **MAJOR** — `BREAKING CHANGE` in commit body/footer, or `!` after type (e.g., `feat!: ...`)
 2. **MINOR** — `feat:` commits present
-3. **PATCH** — `fix:` commits present
-4. **No change** — None of the above
+3. **PATCH** — `fix:` or `perf:` commits present
+4. **No change** — None of the above (prints `nothing to release` and exits without changes)
 
-## Testing
+`-type` overrides the derived type, but the release window must still contain at least one commit.
 
-Run tests with: `go test ./...`
+## Safety Guards
 
-## Linting
+Before applying a release the tool prints the plan (type, version, tag, changelog) and then:
+- asks for confirmation — `Release X.Y.Z? [y/N]`, default *no* (pass `-force` in scripts and CI);
+- refuses if changes are staged (commit or reset them first) or the working tree is dirty;
+- refuses if the target tag already exists;
+- creates an annotated tag (`Release X.Y.Z`) and, with `shouldPushToOrigin` enabled, pushes with `git push --follow-tags` (otherwise it prints the exact next steps);
+- with `-dry-run` exits after printing the plan.
 
-Uses `.golangci.yml` — run with: `golangci-lint run`
+## Verification
+
+Run before submitting:
+- `gofumpt -l .` (must print nothing) and `golangci-lint run` (must report 0 findings)
+- `go test ./...` (optionally add `-race`)
+- or everything in one go: `cd scripts && go run . check`

@@ -50,6 +50,9 @@ func getDefaultConfig() Config {
 	}
 }
 
+// loadConfig parses name on top of the built-in defaults. An empty name
+// reads the default config file when it exists and otherwise yields the
+// defaults untouched.
 func loadConfig(name string) (Config, error) {
 	defaultConfig := getDefaultConfig()
 
@@ -131,6 +134,8 @@ func loadConfig(name string) (Config, error) {
 	return cfg, nil
 }
 
+// saveConfig serialises config as key=value lines and writes them to
+// configFilename with the given permissions.
 func saveConfig(configFilename string, config Config, perm os.FileMode) error {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "version=%s\n", config.Version)

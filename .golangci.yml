@@ -24,7 +24,7 @@ linters:
     - gocritic
     - godot
     - godox
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - gosmopolitan
@@ -69,13 +69,12 @@ linters:
     - wastedassign
     # disabled: unparam
   settings:
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - io/ioutil:
-              recommendations:
-                - io
-                - os
+        - module: io/ioutil
+          recommendations:
+            - io
+            - os
     govet:
       enable-all: true
       disable:

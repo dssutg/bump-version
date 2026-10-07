@@ -1,3 +1,19 @@
+// Command bump-version automates semantic versioning, changelog
+// generation, Conventional Commits validation and Git releases.
+//
+// The codebase is split by responsibility:
+//
+//   - bump-version.go: CLI entry point, option and command dispatch, help.
+//   - bump.go: release planning and the guards around applying a release.
+//   - version.go: strict SemVer parsing, incrementing, comparison and tag
+//     formats.
+//   - commit.go: Conventional Commits parsing and release statistics from
+//     the Git history.
+//   - changelog.go: changelog rendering, remote compare links and
+//     credential stripping.
+//   - config.go: bump-version.cfg parsing, defaults and validation.
+//   - color.go: POSIX terminal color detection and painting.
+//   - utils.go: Git helpers, prompting and process exit helpers.
 package main
 
 import (
@@ -24,6 +40,8 @@ const (
 //go:embed VERSION
 var programVersionStr string
 
+// main parses options and commands, changes into the repository root and
+// runs the selected command.
 func main() {
 	// Make sure the current working directory is the Git repo root
 	repoAbsPath := fatalOnErr2(getRepoAbsPath())
@@ -277,6 +295,7 @@ func main() {
 	// NOTE: Commands may return so there should not be any code
 }
 
+// printHelpAndExit prints the usage text and exits with ExitUsage.
 func printHelpAndExit() {
 	fmt.Fprintf(os.Stderr, `Usage: %s [command] [command options...]
 
@@ -312,6 +331,8 @@ If no command is specified, the default command to run is bump.
 	os.Exit(ExitUsage)
 }
 
+// getRepoAbsPath returns the absolute path of the Git repository root that
+// contains the current working directory.
 func getRepoAbsPath() (string, error) {
 	path, errOut, err := getCommandOutput(gitCommand, "rev-parse", "--show-toplevel")
 	if err != nil {

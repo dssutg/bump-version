@@ -36,6 +36,8 @@ type Commit struct {
 	RefersTo    []string // commit hashes this commit refers to
 }
 
+// ShortHash returns the first seven characters of the commit hash, or the
+// whole hash when it is not longer than that.
 func (c *Commit) ShortHash() string {
 	return ensureShortCommitHash(c.Hash)
 }
@@ -72,6 +74,10 @@ func (s CommitStats) DetermineReleaseType() ReleaseType {
 	}
 }
 
+// processCommitMessages parses the full Git history, resolves reverts
+// against the sinceTag boundary and collects the statistics that drive the
+// release type. An empty sinceTag puts every commit into the release
+// window.
 func processCommitMessages(sinceTag string, ignoreInvalidCommits bool, allowedKinds []string) (CommitStats, error) {
 	allLines, err := getGitCommitLines("") // full history newest->oldest
 	if err != nil {
@@ -234,6 +240,8 @@ func processCommitMessages(sinceTag string, ignoreInvalidCommits bool, allowedKi
 	return commitStats, nil
 }
 
+// logInvalidCommit reports an invalid commit message as a warning when it
+// is ignored, or as an error when it fails the release.
 func logInvalidCommit(ignoreInvalidCommits bool, commitMessage string, err error) {
 	if ignoreInvalidCommits {
 		warnf("WARNING: ignored invalid commit message: %s. Reason: %v", commitMessage, err)
@@ -242,6 +250,9 @@ func logInvalidCommit(ignoreInvalidCommits bool, commitMessage string, err error
 	}
 }
 
+// getGitCommitLines returns one string per commit: the hash followed by
+// the full commit message, including body and footers, so attributes such
+// as BREAKING CHANGE and Refs participate in release type detection.
 func getGitCommitLines(sinceTag string) ([]string, error) {
 	var args []string
 	if sinceTag != "" {
@@ -271,6 +282,10 @@ func getGitCommitLines(sinceTag string) ([]string, error) {
 	return commits, nil
 }
 
+// ParseConventionalCommit parses a Conventional Commits message and
+// validates it. When hasHash is set, message starts with the commit hash
+// and a space as read from Git history. allowedKinds is a strict
+// allow-list: a commit whose kind is missing from it is rejected.
 func ParseConventionalCommit(message string, hasHash bool, allowedKinds []string) (Commit, error) {
 	if strings.TrimSpace(message) == "" {
 		return Commit{}, errors.New("empty commit message")
@@ -496,10 +511,14 @@ func ParseConventionalCommit(message string, hasHash bool, allowedKinds []string
 	return commit, nil
 }
 
+// warnNoCommitsThatCanIncrementCurrentVersion prints the warning shown
+// when no commit in the release window can increment the version.
 func warnNoCommitsThatCanIncrementCurrentVersion() {
 	warnf("no commits that can increment current version")
 }
 
+// parseCommitHash validates a 7- or 40-character lowercase hexadecimal
+// commit hash.
 func parseCommitHash(hash string) (string, error) {
 	if len(hash) != 7 && len(hash) != 40 {
 		return "", errors.New("commit hash length must be either 7 or 40 characters long")
@@ -514,6 +533,8 @@ func parseCommitHash(hash string) (string, error) {
 	return hash, nil
 }
 
+// ensureShortCommitHash truncates hash to its seven-character
+// abbreviation when it is longer.
 func ensureShortCommitHash(hash string) string {
 	if len(hash) > 7 {
 		return hash[:7]
@@ -521,6 +542,8 @@ func ensureShortCommitHash(hash string) string {
 	return hash
 }
 
+// tryParseReference parses a footer line of the form "Attribute: value"
+// into commit; lines without a colon are left alone.
 func tryParseReference(line string, commit *Commit) error {
 	line = strings.TrimSpace(line)
 	if line == "" {

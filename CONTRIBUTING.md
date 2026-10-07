@@ -31,6 +31,16 @@ For code, use only Go. This keeps the project consistent.
 
 Keep distribution simple with no installation required. Only use Go and link binaries statically.
 
+## Before submitting
+
+Run the combined check (formatting, linting, tests):
+
+```bash
+cd scripts && go run . check
+```
+
+Or run the steps individually: `gofumpt -l .` (no output), `golangci-lint run` (0 findings), `go test ./...`.
+
 ## Questions and Answers
 
 ### Why are there no shell scripts or Makefiles?

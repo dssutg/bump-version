@@ -38,6 +38,9 @@ func changelogSections() []changelogSection {
 	}
 }
 
+// generateChangelog renders the release section for the given versions,
+// prepends it to the existing changelog content and writes the result to
+// the configured changelog file.
 func generateChangelog(currentVersion, newVersion Version, commitStats CommitStats, cfg *Config, urlBase string) error {
 	newChangeLog := generateNewChangelogHead(currentVersion, newVersion, commitStats, cfg, urlBase)
 
@@ -133,6 +136,8 @@ func generateNewChangelogHead(currentVersion, newVersion Version, commitStats Co
 	return newChangeLog
 }
 
+// writeChangelogSection appends a named section with its sorted commit
+// records to newChangeLog, or nothing when the section has no commits.
 func writeChangelogSection(newChangeLog *bytes.Buffer, sectionName string, commits []Commit, urlBase string) {
 	if len(commits) == 0 {
 		return
@@ -157,6 +162,8 @@ func writeChangelogSection(newChangeLog *bytes.Buffer, sectionName string, commi
 	}
 }
 
+// commitToChangelogRecord renders one changelog bullet for c, linking the
+// short hash to the remote commit view when urlBase is known.
 func commitToChangelogRecord(c Commit, urlBase string) string {
 	hash := c.ShortHash()
 	if urlBase != "" {
@@ -269,6 +276,8 @@ func withoutEmbeddedCredentials(raw string) string {
 	return raw[:schemeEnd+3] + authority[at+1:]
 }
 
+// sortChangeLogRecords orders changelog records case-insensitively,
+// ignoring asterisk bullet prefixes so they do not influence the order.
 func sortChangeLogRecords(records []string) {
 	slices.SortStableFunc(records, func(a, b string) int {
 		// skip '*' characters and compare by case-folded runes

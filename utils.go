@@ -46,6 +46,8 @@ func askYesNo(r io.Reader, w io.Writer, question string, defaultVal bool) bool {
 	}
 }
 
+// getCommandOutput runs name with args and returns its standard output,
+// its standard error and the resulting error, if any.
 func getCommandOutput(name string, arg ...string) (out string, errOut string, err error) {
 	var outBuf bytes.Buffer
 	var errBuf bytes.Buffer
@@ -65,11 +67,14 @@ func getCommandOutput(name string, arg ...string) (out string, errOut string, er
 	return
 }
 
+// fatalOnErr2 returns value, or exits with a fatal error when err is
+// non-nil.
 func fatalOnErr2[T any](value T, err error) T {
 	fatalOnErr(err)
 	return value
 }
 
+// fatalOnErr exits with a fatal error message when err is non-nil.
 func fatalOnErr(err error) {
 	if err != nil {
 		fatalf("%v", err)
@@ -89,6 +94,8 @@ func warnf(format string, a ...any) {
 	fmt.Fprintln(os.Stderr, paint(colorEnabled(os.Stderr), ansiYellow, msg))
 }
 
+// fileExists reports whether path exists; permission problems count as
+// existence to stay on the safe side.
 func fileExists(path string) bool {
 	//nolint:gosec // the path comes from this program's own config and constants
 	_, err := os.Stat(path)
@@ -101,14 +108,19 @@ func fileExists(path string) bool {
 	return true
 }
 
+// IsHexDigit reports whether r is a hexadecimal digit in either case.
 func IsHexDigit(r rune) bool {
 	return (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')
 }
 
+// IsUpperHexDigit reports whether r is a decimal digit or an uppercase
+// A-F letter.
 func IsUpperHexDigit(r rune) bool {
 	return (r >= '0' && r <= '9') || (r >= 'A' && r <= 'F')
 }
 
+// IsLowerHexDigit reports whether r is a decimal digit or a lowercase
+// a-f letter.
 func IsLowerHexDigit(r rune) bool {
 	return (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')
 }
