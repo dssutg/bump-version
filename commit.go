@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"unicode"
@@ -228,10 +227,7 @@ func processCommitMessages(sinceTag string, ignoreInvalidCommits bool, allowedKi
 				commitStats.HasBreakingChange = true
 			}
 		} else if !ignoreInvalidCommits {
-			fmt.Fprintf(os.Stderr,
-				"%s: WARNING: commit with hash %s was not added to the list of reverted commits! It is most likely an invalid commit or a non-existent hash.\n",
-				programName, ref,
-			)
+			warnf("WARNING: commit with hash %s was not added to the list of reverted commits! It is most likely an invalid commit or a non-existent hash.", ref)
 		}
 	}
 
@@ -240,15 +236,9 @@ func processCommitMessages(sinceTag string, ignoreInvalidCommits bool, allowedKi
 
 func logInvalidCommit(ignoreInvalidCommits bool, commitMessage string, err error) {
 	if ignoreInvalidCommits {
-		fmt.Fprintf(os.Stderr,
-			"%s: WARNING: ignored invalid commit message: %s. Reason: %v\n",
-			programName, commitMessage, err,
-		)
+		warnf("WARNING: ignored invalid commit message: %s. Reason: %v", commitMessage, err)
 	} else {
-		fmt.Fprintf(os.Stderr,
-			"%s: ERROR: invalid commit message: %s. Reason: %v\n",
-			programName, commitMessage, err,
-		)
+		warnf("ERROR: invalid commit message: %s. Reason: %v", commitMessage, err)
 	}
 }
 
@@ -507,7 +497,7 @@ func ParseConventionalCommit(message string, hasHash bool, allowedKinds []string
 }
 
 func warnNoCommitsThatCanIncrementCurrentVersion() {
-	fmt.Fprintln(os.Stderr, programName+": no commits that can increment current version")
+	warnf("no commits that can increment current version")
 }
 
 func parseCommitHash(hash string) (string, error) {

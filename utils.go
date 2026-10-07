@@ -23,7 +23,7 @@ func askYesNo(r io.Reader, w io.Writer, question string, defaultVal bool) bool {
 			defaultPrompt = "Y/n"
 		}
 
-		fmt.Fprintf(w, "%s [%s]: ", question, defaultPrompt)
+		fmt.Fprintf(w, "%s [%s]: ", paint(colorEnabled(w), ansiBold, question), defaultPrompt)
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			// on EOF or other read error, return default
@@ -76,9 +76,17 @@ func fatalOnErr(err error) {
 	}
 }
 
+// fatalf prints a red error line to standard error and exits with ExitFailure.
 func fatalf(format string, a ...any) {
-	fmt.Fprintf(os.Stderr, programName+": "+format+"\n", a...)
+	msg := programName + ": " + fmt.Sprintf(format, a...)
+	fmt.Fprintln(os.Stderr, paint(colorEnabled(os.Stderr), ansiRed, msg))
 	os.Exit(ExitFailure)
+}
+
+// warnf prints a yellow warning line to standard error.
+func warnf(format string, a ...any) {
+	msg := programName + ": " + fmt.Sprintf(format, a...)
+	fmt.Fprintln(os.Stderr, paint(colorEnabled(os.Stderr), ansiYellow, msg))
 }
 
 func fileExists(path string) bool {

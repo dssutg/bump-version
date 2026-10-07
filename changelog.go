@@ -183,19 +183,13 @@ func resolveURLBase(remote string) string {
 		if detail == "" {
 			detail = err.Error()
 		}
-		fmt.Fprintf(os.Stderr,
-			"%s: WARNING: could not get URL of remote %q: %s; changelog links will be omitted\n",
-			programName, remote, detail,
-		)
+		warnf("WARNING: could not get URL of remote %q: %s; changelog links will be omitted", remote, detail)
 		return ""
 	}
 
 	base := withoutEmbeddedCredentials(normalizeRemoteURL(out))
 	if base == "" {
-		fmt.Fprintf(os.Stderr,
-			"%s: WARNING: could not interpret URL of remote %q; changelog links will be omitted\n",
-			programName, remote,
-		)
+		warnf("WARNING: could not interpret URL of remote %q; changelog links will be omitted", remote)
 		return ""
 	}
 	return base

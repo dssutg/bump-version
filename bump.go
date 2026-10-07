@@ -55,7 +55,7 @@ func planRelease(cfg *Config, opts bumpOptions) (releasePlan, error) {
 
 	// An empty release window refuses to release even with a forced type.
 	if stats.InWindowCommits == 0 {
-		fmt.Fprintln(os.Stderr, programName+": nothing to release")
+		warnf("nothing to release")
 		return releasePlan{
 			current:     currentVersion,
 			stats:       stats,
@@ -86,9 +86,10 @@ func planRelease(cfg *Config, opts bumpOptions) (releasePlan, error) {
 
 // printPlan writes the human-readable release plan to w.
 func (p releasePlan) printPlan(w io.Writer) {
+	color := colorEnabled(w)
 	fmt.Fprintf(w, "Release:     %s\n", p.releaseType)
-	fmt.Fprintf(w, "Version:     %s -> %s\n", p.current.ToString(), p.next.ToString())
-	fmt.Fprintf(w, "Tag:         %s\n", p.tagName)
+	fmt.Fprintf(w, "Version:     %s\n", paint(color, ansiGreen, p.current.ToString()+" -> "+p.next.ToString()))
+	fmt.Fprintf(w, "Tag:         %s\n", paint(color, ansiGreen, p.tagName))
 }
 
 // bumpVersion plans a release, shows it to the user and applies it. A dry run
@@ -154,7 +155,7 @@ func bumpVersion(cfg *Config, opts bumpOptions) error {
 func applyReleasePlan(cfg *Config, plan releasePlan, stdout io.Writer) error {
 	newVersionStr := plan.next.ToString()
 
-	fmt.Fprintf(stdout, "Bumping next release version %s...\n", newVersionStr)
+	fmt.Fprintln(stdout, paint(colorEnabled(stdout), ansiGreen, "Bumping next release version "+newVersionStr+"..."))
 
 	if err := generateChangelog(plan.current, plan.next, plan.stats, cfg, plan.urlBase); err != nil {
 		return err

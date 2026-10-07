@@ -137,14 +137,14 @@ func main() {
 			fatalf("could not ensure the hook is executable: %v", err)
 		}
 
-		fmt.Println("Git Hook added")
+		fmt.Println(paint(colorEnabled(os.Stdout), ansiGreen, "Git Hook added"))
 
 	case "remove-hook":
 		if err := os.RemoveAll(preCommiHookPath); err != nil {
 			fatalf("could not remove the hook file: %v", err)
 		}
 
-		fmt.Println("Git Hook removed")
+		fmt.Println(paint(colorEnabled(os.Stdout), ansiGreen, "Git Hook removed"))
 
 	case "lint-commit":
 		cfg := fatalOnErr2(loadConfig(configFilename))
@@ -179,10 +179,7 @@ func main() {
 			_, err := ParseConventionalCommit(message, true, cfg.AllowedCommitKinds)
 			if err != nil {
 				hasInvalidCommits = true
-				fmt.Fprintf(os.Stderr,
-					"%s: invalid commit message: %s. Reason: %v\n",
-					programName, message, err,
-				)
+				warnf("invalid commit message: %s. Reason: %v", message, err)
 			}
 		}
 
@@ -244,7 +241,7 @@ func main() {
 		}
 
 		if !forceMode {
-			fmt.Println("WARNING: the following commands will be run:")
+			fmt.Println(paint(colorEnabled(os.Stdout), ansiYellow, "WARNING: the following commands will be run:"))
 			fmt.Println()
 
 			for _, cmdArgs := range commands {
