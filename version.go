@@ -87,20 +87,6 @@ func (v *Version) IncrementTo(releaseType ReleaseType) {
 	}
 }
 
-func (v *Version) Increment(hasBreakingChange, hasFeatures, hasFixes bool) {
-	switch {
-	case hasBreakingChange:
-		v.Major++
-		v.Minor = 0
-		v.Patch = 0
-	case hasFeatures:
-		v.Minor++
-		v.Patch = 0
-	case hasFixes:
-		v.Patch++
-	}
-}
-
 // nextPrerelease computes the next prerelease suffix: an empty suffix starts
 // at rc.0, a suffix without a dot gains .0, and a suffix ending in a numeric
 // identifier has that identifier incremented (rc.1 becomes rc.2).
@@ -296,7 +282,7 @@ func versionToGitTag(version Version, tagFormat string) string {
 }
 
 func getCurrentVersionTag() (string, error) {
-	currentVersionTagGitOutput, errOut, err := getCommandOutput("git", "describe", "--tags", "--abbrev=0")
+	currentVersionTagGitOutput, errOut, err := getCommandOutput(gitCommand, "describe", "--tags", "--abbrev=0")
 	if err != nil {
 		if seemsNoTagsError(errOut) {
 			return "", errors.New("no version tags found; mark the first version with `git tag v0.1.0`")

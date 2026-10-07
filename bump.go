@@ -23,20 +23,23 @@ func bumpVersion(cfg *Config) error {
 		return err
 	}
 
-	if !commitStats.VersionCanBeIncremented() {
+	releaseType := commitStats.DetermineReleaseType()
+	if releaseType == ReleaseTypeNone {
 		warnNoCommitsThatCanIncrementCurrentVersion()
 		return nil
 	}
 
+	urlBase := resolveURLBase("origin")
+
 	// Determine new version based on the processed commits
 	newVersion := currentVersion
-	newVersion.Increment(commitStats.HasBreakingChange, commitStats.HasNewFeatures, commitStats.HasNewFixes)
+	newVersion.IncrementTo(releaseType)
 	newVersionStr := newVersion.ToString()
 
 	fmt.Printf("Bumping next release version %s...\n", newVersionStr)
 
 	// Generate Changelog
-	if err := generateChangelog(currentVersion, newVersion, commitStats, cfg); err != nil {
+	if err := generateChangelog(currentVersion, newVersion, commitStats, cfg, urlBase); err != nil {
 		return err
 	}
 
@@ -50,7 +53,7 @@ func bumpVersion(cfg *Config) error {
 	// Stage Changelog and version files
 	gitAddArgs := []string{"add", cfg.ChangeLogFilename}
 	gitAddArgs = append(gitAddArgs, cfg.VersionFilenames...)
-	if _, errOut, err := getCommandOutput("git", gitAddArgs...); err != nil {
+	if _, errOut, err := getCommandOutput(gitCommand, gitAddArgs...); err != nil {
 		return fmt.Errorf("error staging files to Git: %s", errOut)
 	}
 
@@ -60,17 +63,17 @@ func bumpVersion(cfg *Config) error {
 		versionTagFormatSubst,
 		newVersionStr,
 	)
-	if _, errOut, err := getCommandOutput("git", "commit", "-m", bumpVersionCommitMessage); err != nil {
+	if _, errOut, err := getCommandOutput(gitCommand, "commit", "-m", bumpVersionCommitMessage); err != nil {
 		return fmt.Errorf("error committing changes to Git: %s", errOut)
 	}
 
 	// Tag release
-	if _, errOut, err := getCommandOutput("git", "tag", "v"+newVersionStr); err != nil {
+	if _, errOut, err := getCommandOutput(gitCommand, "tag", "v"+newVersionStr); err != nil {
 		return fmt.Errorf("error adding Git tag for this release: %s", errOut)
 	}
 
 	if cfg.ShouldPushToOrigin {
-		if _, errOut, err := getCommandOutput("git", "push", "--tags", "origin"); err != nil {
+		if _, errOut, err := getCommandOutput(gitCommand, "push", "--tags", "origin"); err != nil {
 			return fmt.Errorf("error pushing to remote Git repository: %s", errOut)
 		}
 	}

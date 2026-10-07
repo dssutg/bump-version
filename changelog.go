@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"slices"
@@ -13,8 +14,32 @@ import (
 	"unicode/utf8"
 )
 
-func generateChangelog(currentVersion, newVersion Version, commitStats CommitStats, cfg *Config) error {
-	newChangeLog := generateNewChangelogHead(currentVersion, newVersion, commitStats)
+// changelogSection associates a commit kind with the changelog section that
+// renders it. Sections are rendered in the order they are listed.
+type changelogSection struct {
+	name string
+	kind string
+}
+
+// changelogSections returns the changelog kind sections in their canonical
+// render order. Kinds without a dedicated section fall back to Chores.
+func changelogSections() []changelogSection {
+	return []changelogSection{
+		{"Features", CommitKindFeat},
+		{"Bug Fixes", CommitKindFix},
+		{"Performance", CommitKindPerf},
+		{"Refactoring", CommitKindRefactor},
+		{"Documentation", CommitKindDocs},
+		{"Tests", CommitKindTest},
+		{"Build", CommitKindBuild},
+		{"Continuous Integration", CommitKindCI},
+		{"Styling", CommitKindStyle},
+		{"Chores", CommitKindChore},
+	}
+}
+
+func generateChangelog(currentVersion, newVersion Version, commitStats CommitStats, cfg *Config, urlBase string) error {
+	newChangeLog := generateNewChangelogHead(currentVersion, newVersion, commitStats, cfg, urlBase)
 
 	// Merge with the current Changelog if it exists
 	if fileExists(cfg.ChangeLogFilename) {
@@ -55,28 +80,58 @@ func generateChangelog(currentVersion, newVersion Version, commitStats CommitSta
 	return nil
 }
 
-func generateNewChangelogHead(currentVersion, newVersion Version, commitStats CommitStats) bytes.Buffer {
+// generateNewChangelogHead renders the release section that is prepended to
+// the changelog. When urlBase is known, the release header links to the
+// remote compare view and commit hashes link to their commits.
+func generateNewChangelogHead(currentVersion, newVersion Version, commitStats CommitStats, cfg *Config, urlBase string) bytes.Buffer {
 	curDateStr := time.Now().Format(time.DateOnly)
 
 	var newChangeLog bytes.Buffer
 
 	// Write Changelog header
-	fmt.Fprintf(&newChangeLog,
-		"# Changelog\n\n## [%s](///compare/v%s...v%s) (%s)\n",
-		newVersion.ToString(),
-		currentVersion.ToString(),
-		newVersion.ToString(),
-		curDateStr,
-	)
+	if urlBase != "" {
+		fmt.Fprintf(&newChangeLog,
+			"# Changelog\n\n## [%s](%s/compare/%s...%s) (%s)\n",
+			newVersion.ToString(),
+			urlBase,
+			versionToGitTag(currentVersion, cfg.VersionTagFormat),
+			versionToGitTag(newVersion, cfg.VersionTagFormat),
+			curDateStr,
+		)
+	} else {
+		fmt.Fprintf(&newChangeLog,
+			"# Changelog\n\n## [%s] (%s)\n",
+			newVersion.ToString(),
+			curDateStr,
+		)
+	}
 
-	writeChangelogSection(&newChangeLog, "Features", commitStats.Features)
-	writeChangelogSection(&newChangeLog, "Bug Fixes", commitStats.Fixes)
-	writeChangelogSection(&newChangeLog, "Reverted Changes", commitStats.RevertedPreTag)
+	// Write kind sections in canonical order; collect kinds that have no
+	// dedicated section so they can be reported under Chores
+	sections := changelogSections()
+	knownKinds := make(map[string]bool, len(sections))
+	for _, section := range sections {
+		knownKinds[section.kind] = true
+	}
+
+	for _, section := range sections {
+		commits := commitStats.ByKind[section.kind]
+		if section.kind == CommitKindChore {
+			for kind, kindCommits := range commitStats.ByKind {
+				if !knownKinds[kind] {
+					commits = append(commits, kindCommits...)
+				}
+			}
+		}
+		writeChangelogSection(&newChangeLog, section.name, commits, urlBase)
+	}
+
+	writeChangelogSection(&newChangeLog, "Reverted Changes", commitStats.RevertedPreTag, urlBase)
 
 	return newChangeLog
 }
 
-func writeChangelogSection(newChangeLog *bytes.Buffer, sectionName string, commits []Commit) {
+func writeChangelogSection(newChangeLog *bytes.Buffer, sectionName string, commits []Commit, urlBase string) {
 	if len(commits) == 0 {
 		return
 	}
@@ -89,7 +144,7 @@ func writeChangelogSection(newChangeLog *bytes.Buffer, sectionName string, commi
 	// Stringify and sort list
 	sorted := make([]string, len(commits))
 	for i, commit := range commits {
-		sorted[i] = commitToChangelogRecord(commit)
+		sorted[i] = commitToChangelogRecord(commit, urlBase)
 	}
 	sortChangeLogRecords(sorted)
 
@@ -100,15 +155,122 @@ func writeChangelogSection(newChangeLog *bytes.Buffer, sectionName string, commi
 	}
 }
 
-func commitToChangelogRecord(c Commit) string {
+func commitToChangelogRecord(c Commit, urlBase string) string {
+	hash := c.ShortHash()
+	if urlBase != "" {
+		hash = fmt.Sprintf("[%s](%s/commit/%s)", c.ShortHash(), urlBase, c.Hash)
+	}
+
 	breakingChange := ""
 	if c.Breaking {
 		breakingChange = " [BREAKING CHANGE]"
 	}
 	if c.Scope != "" {
-		return fmt.Sprintf("* **%s:**%s %s %s", c.Scope, breakingChange, c.Description, c.ShortHash())
+		return fmt.Sprintf("* **%s:**%s %s %s", c.Scope, breakingChange, c.Description, hash)
 	}
-	return fmt.Sprintf("*%s %s %s", breakingChange, c.Description, c.ShortHash())
+	return fmt.Sprintf("*%s %s %s", breakingChange, c.Description, hash)
+}
+
+// resolveURLBase returns the web base URL of the given Git remote for
+// changelog links. When the remote is missing or cannot be interpreted it
+// warns once on stderr and returns "", which omits all links.
+func resolveURLBase(remote string) string {
+	out, errOut, err := getCommandOutput(gitCommand, "remote", "get-url", remote)
+	if err != nil {
+		detail := strings.TrimSpace(errOut)
+		if detail == "" {
+			detail = err.Error()
+		}
+		fmt.Fprintf(os.Stderr,
+			"%s: WARNING: could not get URL of remote %q: %s; changelog links will be omitted\n",
+			programName, remote, detail,
+		)
+		return ""
+	}
+
+	base := withoutEmbeddedCredentials(normalizeRemoteURL(out))
+	if base == "" {
+		fmt.Fprintf(os.Stderr,
+			"%s: WARNING: could not interpret URL of remote %q; changelog links will be omitted\n",
+			programName, remote,
+		)
+		return ""
+	}
+	return base
+}
+
+// normalizeRemoteURL converts a Git remote URL into a repository base URL
+// suitable for changelog links. HTTP(S) URLs pass through, SSH and SCP-like
+// (git@host:path) URLs are rewritten to HTTPS, and scheme-less host/owner/repo
+// forms gain an https:// prefix. It returns "" for anything that cannot be
+// interpreted as a repository URL.
+func normalizeRemoteURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.ContainsAny(raw, " \t") {
+		return ""
+	}
+
+	if !strings.Contains(raw, "://") {
+		// SCP-like syntax: [user@]host:path
+		if colon := strings.IndexByte(raw, ':'); colon >= 0 && !strings.Contains(raw[:colon], "/") {
+			host := raw[:colon]
+			if _, hostWithoutUser, ok := strings.Cut(host, "@"); ok {
+				host = hostWithoutUser
+			}
+			path := strings.TrimSuffix(strings.TrimLeft(raw[colon+1:], "/"), ".git")
+			if host == "" || path == "" {
+				return ""
+			}
+			return "https://" + host + "/" + path
+		}
+
+		// Scheme-less host/owner/repo form
+		if !strings.Contains(raw, "/") {
+			return ""
+		}
+		return "https://" + strings.TrimPrefix(raw, "/")
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	if u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "ssh" {
+		return ""
+	}
+
+	path := strings.TrimSuffix(strings.Trim(u.Path, "/"), ".git")
+	if path == "" {
+		return ""
+	}
+	if u.Scheme == "ssh" {
+		return "https://" + u.Host + "/" + path
+	}
+	return u.Scheme + "://" + u.Host + "/" + path
+}
+
+// withoutEmbeddedCredentials removes the userinfo part (user:token@) from an
+// HTTP(S) URL so that credentials embedded in a remote URL never reach the
+// changelog.
+func withoutEmbeddedCredentials(raw string) string {
+	schemeEnd := strings.Index(raw, "://")
+	if schemeEnd < 0 {
+		return raw
+	}
+	if scheme := raw[:schemeEnd]; scheme != "http" && scheme != "https" {
+		return raw
+	}
+
+	authority := raw[schemeEnd+3:]
+	at := strings.IndexByte(authority, '@')
+	if at < 0 {
+		return raw
+	}
+	if slash := strings.IndexByte(authority, '/'); slash >= 0 && at > slash {
+		return raw
+	}
+
+	return raw[:schemeEnd+3] + authority[at+1:]
 }
 
 func sortChangeLogRecords(records []string) {

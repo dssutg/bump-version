@@ -11,9 +11,17 @@ import (
 )
 
 const (
-	CommitKindFeat   = "feat"
-	CommitKindFix    = "fix"
-	CommitKindRevert = "revert"
+	CommitKindFeat     = "feat"
+	CommitKindFix      = "fix"
+	CommitKindPerf     = "perf"
+	CommitKindRefactor = "refactor"
+	CommitKindDocs     = "docs"
+	CommitKindTest     = "test"
+	CommitKindBuild    = "build"
+	CommitKindCI       = "ci"
+	CommitKindStyle    = "style"
+	CommitKindChore    = "chore"
+	CommitKindRevert   = "revert"
 )
 
 var ErrFoundInvalidCommits = errors.New("found invalid commits")
@@ -34,20 +42,35 @@ func (c *Commit) ShortHash() string {
 }
 
 type CommitStats struct {
-	Features          []Commit
-	Fixes             []Commit
-	Reverts           []Commit
+	// ByKind groups the live commits of the release window by their
+	// Conventional Commits kind. Revert commits are not included there:
+	// reverts only feed the "Reverted Changes" changelog section.
+	ByKind            map[string][]Commit
 	HasBreakingChange bool
-	HasNewFeatures    bool
-	HasNewFixes       bool
+
+	// InWindowCommits is the number of live commits since the release tag.
+	// It lets a forced release type refuse an empty release window.
+	InWindowCommits int
 
 	// Commits from before the tag that got
 	// reverted by reverts since the tag
 	RevertedPreTag []Commit
 }
 
-func (s CommitStats) VersionCanBeIncremented() bool {
-	return s.HasBreakingChange || s.HasNewFeatures || s.HasNewFixes
+// DetermineReleaseType derives the release type from the collected commits:
+// any breaking change makes a major release, any feat makes a minor one, any
+// fix or perf makes a patch, and anything else means nothing to release.
+func (s CommitStats) DetermineReleaseType() ReleaseType {
+	switch {
+	case s.HasBreakingChange:
+		return ReleaseTypeMajor
+	case len(s.ByKind[CommitKindFeat]) > 0:
+		return ReleaseTypeMinor
+	case len(s.ByKind[CommitKindFix]) > 0, len(s.ByKind[CommitKindPerf]) > 0:
+		return ReleaseTypePatch
+	default:
+		return ReleaseTypeNone
+	}
 }
 
 func processCommitMessages(sinceTag string, ignoreInvalidCommits bool, allowedKinds []string) (CommitStats, error) {
@@ -167,13 +190,8 @@ func processCommitMessages(sinceTag string, ignoreInvalidCommits bool, allowedKi
 	// Build final CommitStats including detection of pre-tag commits
 	// reverted by in-window reverts
 	commitStats := CommitStats{
-		Features:          make([]Commit, 0, 256),
-		Fixes:             make([]Commit, 0, 256),
-		Reverts:           make([]Commit, 0, 256),
-		HasBreakingChange: false,
-		HasNewFeatures:    false,
-		HasNewFixes:       false,
-		RevertedPreTag:    make([]Commit, 0, 64),
+		ByKind:         make(map[string][]Commit),
+		RevertedPreTag: make([]Commit, 0, 64),
 	}
 
 	for short, c := range byRef {
@@ -187,20 +205,19 @@ func processCommitMessages(sinceTag string, ignoreInvalidCommits bool, allowedKi
 			continue
 		}
 
+		commitStats.InWindowCommits++
+
 		if c.Breaking {
 			commitStats.HasBreakingChange = true
 		}
 
-		switch c.Kind {
-		case CommitKindFeat:
-			commitStats.Features = append(commitStats.Features, c)
-			commitStats.HasNewFeatures = true
-		case CommitKindFix:
-			commitStats.Fixes = append(commitStats.Fixes, c)
-			commitStats.HasNewFixes = true
-		case CommitKindRevert:
-			commitStats.Reverts = append(commitStats.Reverts, c)
+		// Revert commits are rendered by the dedicated
+		// "Reverted Changes" section, not by kind sections
+		if c.Kind == CommitKindRevert {
+			continue
 		}
+
+		commitStats.ByKind[c.Kind] = append(commitStats.ByKind[c.Kind], c)
 	}
 
 	// Populate RevertedPreTag slice from the set
@@ -209,12 +226,6 @@ func processCommitMessages(sinceTag string, ignoreInvalidCommits bool, allowedKi
 			commitStats.RevertedPreTag = append(commitStats.RevertedPreTag, c)
 			if c.Breaking {
 				commitStats.HasBreakingChange = true
-			}
-			switch c.Kind {
-			case CommitKindFeat:
-				commitStats.HasNewFeatures = true
-			case CommitKindFix:
-				commitStats.HasNewFixes = true
 			}
 		} else if !ignoreInvalidCommits {
 			fmt.Fprintf(os.Stderr,
@@ -244,24 +255,24 @@ func logInvalidCommit(ignoreInvalidCommits bool, commitMessage string, err error
 func getGitCommitLines(sinceTag string) ([]string, error) {
 	var args []string
 	if sinceTag != "" {
-		args = []string{"log", sinceTag + "..HEAD", "--pretty=format:%H %s", "--abbrev=false"}
+		args = []string{"log", sinceTag + "..HEAD", "--pretty=format:%H %B\x1e", "--abbrev=false"}
 	} else {
-		args = []string{"log", "--pretty=format:%H %s", "--abbrev=false"}
+		args = []string{"log", "--pretty=format:%H %B\x1e", "--abbrev=false"}
 	}
 
 	// Get all commits since the provided tag
-	gitCommitsOut, errOut, err := getCommandOutput("git", args...)
+	gitCommitsOut, errOut, err := getCommandOutput(gitCommand, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error getting commits from Git: %s", errOut)
 	}
 
-	rawGitCommits := strings.Split(strings.TrimSpace(gitCommitsOut), "\n")
+	rawGitCommits := strings.Split(gitCommitsOut, "\x1e")
 
 	commits := make([]string, 0, len(rawGitCommits))
 
-	// Trim all commits and skip empty lines
-	for _, line := range rawGitCommits {
-		message := strings.TrimSpace(line)
+	// Trim each record and skip empty ones
+	for _, record := range rawGitCommits {
+		message := strings.TrimSpace(record)
 		if message != "" {
 			commits = append(commits, message)
 		}

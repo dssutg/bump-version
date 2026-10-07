@@ -10,6 +10,8 @@ import (
 
 const programName = "bump-version"
 
+const gitCommand = "git"
+
 const preCommiHookPath = ".git/hooks/pre-commit"
 
 // Program exit status codes.
@@ -76,15 +78,18 @@ func main() {
 
 		commitStats := fatalOnErr2(processCommitMessages(curTag, cfg.IgnoreInvalidCommits, cfg.AllowedCommitKinds))
 
-		if !commitStats.VersionCanBeIncremented() {
+		releaseType := commitStats.DetermineReleaseType()
+		if releaseType == ReleaseTypeNone {
 			warnNoCommitsThatCanIncrementCurrentVersion()
 			return
 		}
 
-		newVersion := currentVersion
-		newVersion.Increment(commitStats.HasBreakingChange, commitStats.HasNewFeatures, commitStats.HasNewFixes)
+		urlBase := resolveURLBase("origin")
 
-		newChangeLog := generateNewChangelogHead(currentVersion, newVersion, commitStats)
+		newVersion := currentVersion
+		newVersion.IncrementTo(releaseType)
+
+		newChangeLog := generateNewChangelogHead(currentVersion, newVersion, commitStats, &cfg, urlBase)
 		fmt.Println(newChangeLog.String())
 
 	case "add-hook":
@@ -188,8 +193,8 @@ func main() {
 
 		newVersion := currentVersion
 
-		if commitStats.VersionCanBeIncremented() {
-			newVersion.Increment(commitStats.HasBreakingChange, commitStats.HasNewFeatures, commitStats.HasNewFixes)
+		if releaseType := commitStats.DetermineReleaseType(); releaseType != ReleaseTypeNone {
+			newVersion.IncrementTo(releaseType)
 		} else {
 			warnNoCommitsThatCanIncrementCurrentVersion()
 		}
@@ -220,18 +225,18 @@ func main() {
 
 		commands := [][]string{
 			// Undo the last commit
-			{"git", "reset", "--mixed", "HEAD~1"},
+			{gitCommand, "reset", "--mixed", "HEAD~1"},
 
 			// Remove the newest version tag
-			{"git", "tag", "-d", versionTag},
+			{gitCommand, "tag", "-d", versionTag},
 
 			// Remove the recent changes made to the Changelog
-			{"git", "restore", cfg.ChangeLogFilename},
+			{gitCommand, "restore", cfg.ChangeLogFilename},
 		}
 
 		// Add the commands to remove the recent changes made to the version files
 		for _, filename := range cfg.VersionFilenames {
-			commands = append(commands, []string{"git", "restore", filename})
+			commands = append(commands, []string{gitCommand, "restore", filename})
 		}
 
 		if !forceMode {
@@ -302,7 +307,7 @@ If no command is specified, the default command to run is bump.
 }
 
 func getRepoAbsPath() (string, error) {
-	path, errOut, err := getCommandOutput("git", "rev-parse", "--show-toplevel")
+	path, errOut, err := getCommandOutput(gitCommand, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", fmt.Errorf("could not get the absolute repo path from Git: %v", errOut)
 	}

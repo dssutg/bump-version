@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const fixMsgX = "fix: x"
+
 func TestParseConventionalCommit_TableDriven(t *testing.T) {
 	t.Parallel()
 
@@ -28,88 +30,88 @@ func TestParseConventionalCommit_TableDriven(t *testing.T) {
 		{
 			name:         "leading whitespace",
 			message:      " leading: desc",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "commit message line number 1 (` leading: desc`) should not have have leading or trailing whitespace"},
 		},
 		{
 			name:         "trailing whitespace",
 			message:      "trailing: desc ",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "trailing whitespace"},
 		},
 		{
 			name:         "empty message",
 			message:      "",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "empty commit message"},
 		},
 		{
 			name:         "empty header",
 			message:      "\nbody",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "empty commit message header"},
 		},
 		{
 			name:         "valid hash prefix",
 			message:      "0123456 feat: add stuff",
 			hasHash:      true,
-			allowedKinds: []string{"feat"},
-			want:         want{hash: "0123456", kind: "feat", description: "add stuff"},
+			allowedKinds: []string{CommitKindFeat},
+			want:         want{hash: "0123456", kind: CommitKindFeat, description: "add stuff"},
 		},
 		{
 			name:         "invalid hash content",
 			message:      "ZZZZZZZ feat: x",
 			hasHash:      true,
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "lowercase hexadecimal"},
 		},
 		{
 			name:         "missing space after hash",
 			message:      "0123456feat: x",
 			hasHash:      true,
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "commit hash length must be either 7 or 40 characters long"},
 		},
 		{
 			name:         "kind scope bang",
 			message:      "feat(scope)!: do something",
-			allowedKinds: []string{"feat"},
-			want:         want{kind: "feat", scope: "scope", breaking: true, description: "do something"},
+			allowedKinds: []string{CommitKindFeat},
+			want:         want{kind: CommitKindFeat, scope: "scope", breaking: true, description: "do something"},
 		},
 		{
 			name:         "missing colon",
 			message:      "feat scope do",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "must have colon"},
 		},
 		{
 			name:         "space before paren",
 			message:      "feat (scope): x",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "spaces before `('"},
 		},
 		{
 			name:         "empty scope",
 			message:      "feat(): x",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "scope cannot be empty"},
 		},
 		{
 			name:         "no space after colon",
 			message:      "feat:do",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "space after colon"},
 		},
 		{
 			name:         "description ends with period",
 			message:      "feat: finishes.",
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{errContains: "should not end with period"},
 		},
 		{
 			name:         "kind not allowed",
 			message:      "chore: x",
-			allowedKinds: []string{"feat", "fix"},
+			allowedKinds: []string{CommitKindFeat, CommitKindFix},
 			want:         want{errContains: "not allowed"},
 		},
 		{
@@ -122,7 +124,7 @@ func TestParseConventionalCommit_TableDriven(t *testing.T) {
 				"",
 				"Refs: 0123456, 89abcde",
 			}, "\n"),
-			allowedKinds: []string{"fix"},
+			allowedKinds: []string{CommitKindFix},
 			want:         want{body: "this is the body line 1\nline 2", refersTo: []string{"0123456", "89abcde"}},
 		},
 		{
@@ -134,31 +136,31 @@ func TestParseConventionalCommit_TableDriven(t *testing.T) {
 				"",
 				"BREAKING CHANGE: API changed",
 			}, "\n"),
-			allowedKinds: []string{"feat"},
+			allowedKinds: []string{CommitKindFeat},
 			want:         want{breaking: true},
 		},
 		{
 			name:         "refs wrong case",
-			message:      strings.Join([]string{"fix: x", "", "refs: 0123456"}, "\n"),
-			allowedKinds: []string{"fix"},
+			message:      strings.Join([]string{fixMsgX, "", "refs: 0123456"}, "\n"),
+			allowedKinds: []string{CommitKindFix},
 			want:         want{errContains: "consistent case"},
 		},
 		{
 			name:         "bad hash in refs",
-			message:      strings.Join([]string{"fix: x", "", "Refs: badhash"}, "\n"),
-			allowedKinds: []string{"fix"},
+			message:      strings.Join([]string{fixMsgX, "", "Refs: badhash"}, "\n"),
+			allowedKinds: []string{CommitKindFix},
 			want:         want{errContains: "invalid hash"},
 		},
 		{
 			name:         "no space after colon in end",
-			message:      strings.Join([]string{"fix: x", "", "Refs:0123456"}, "\n"),
-			allowedKinds: []string{"fix"},
+			message:      strings.Join([]string{fixMsgX, "", "Refs:0123456"}, "\n"),
+			allowedKinds: []string{CommitKindFix},
 			want:         want{errContains: "one space after colon"},
 		},
 		{
 			name:         "comma spacing in refs",
-			message:      strings.Join([]string{"fix: x", "", "Refs: 0123456,89abcdef"}, "\n"),
-			allowedKinds: []string{"fix"},
+			message:      strings.Join([]string{fixMsgX, "", "Refs: 0123456,89abcdef"}, "\n"),
+			allowedKinds: []string{CommitKindFix},
 			want:         want{errContains: "delimited by comma and a single space"},
 		},
 		{
