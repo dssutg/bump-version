@@ -50,6 +50,7 @@ func getCommandOutput(name string, arg ...string) (out string, errOut string, er
 	var outBuf bytes.Buffer
 	var errBuf bytes.Buffer
 
+	//nolint:gosec // the command and its arguments come from this program's own call sites
 	cmd := exec.Command(name, arg...)
 
 	cmd.Stdin = os.Stdin
@@ -81,6 +82,7 @@ func fatalf(format string, a ...any) {
 }
 
 func fileExists(path string) bool {
+	//nolint:gosec // the path comes from this program's own config and constants
 	_, err := os.Stat(path)
 	if err == nil {
 		return true

@@ -32,6 +32,8 @@ func main() {
 	configFilename := "" // not determined yet
 
 	forceMode := false
+	dryRun := false
+	var forcedReleaseType ReleaseType
 
 	args := os.Args[1:] // get rid of executable name from args
 
@@ -48,16 +50,39 @@ func main() {
 		case "-force":
 			forceMode = true
 			args = args[1:]
+		case "-dry-run":
+			dryRun = true
+			args = args[1:]
+		case "-type":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "%s: option -type needs a release type argument\n", programName)
+				os.Exit(ExitUsage)
+			}
+			releaseType, err := parseReleaseType(args[1])
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n\n", programName, err)
+				printHelpAndExit()
+			}
+			forcedReleaseType = releaseType
+			args = args[2:]
 		default:
 			fmt.Fprintf(os.Stderr, "%s: unknown option %s\n\n", programName, args[0])
 			printHelpAndExit()
 		}
 	}
 
+	bumpOpts := bumpOptions{
+		Force:       forceMode,
+		DryRun:      dryRun,
+		ReleaseType: forcedReleaseType,
+		Stdin:       os.Stdin,
+		Stdout:      os.Stdout,
+	}
+
 	// If no command specified, default to command `bump`
 	if len(args) < 1 {
 		cfg := fatalOnErr2(loadConfig(configFilename))
-		fatalOnErr(bumpVersion(&cfg))
+		fatalOnErr(bumpVersion(&cfg, bumpOpts))
 		return
 	}
 
@@ -67,29 +92,17 @@ func main() {
 	switch command {
 	case "bump":
 		cfg := fatalOnErr2(loadConfig(configFilename))
-		fatalOnErr(bumpVersion(&cfg))
+		fatalOnErr(bumpVersion(&cfg, bumpOpts))
 
 	case "preview-changelog":
 		cfg := fatalOnErr2(loadConfig(configFilename))
 
-		currentVersion := fatalOnErr2(getCurrentVersionByGitTag(cfg.VersionTagFormat))
-
-		curTag := versionToGitTag(currentVersion, cfg.VersionTagFormat)
-
-		commitStats := fatalOnErr2(processCommitMessages(curTag, cfg.IgnoreInvalidCommits, cfg.AllowedCommitKinds))
-
-		releaseType := commitStats.DetermineReleaseType()
-		if releaseType == ReleaseTypeNone {
-			warnNoCommitsThatCanIncrementCurrentVersion()
+		plan := fatalOnErr2(planRelease(&cfg, bumpOpts))
+		if plan.releaseType == ReleaseTypeNone {
 			return
 		}
 
-		urlBase := resolveURLBase("origin")
-
-		newVersion := currentVersion
-		newVersion.IncrementTo(releaseType)
-
-		newChangeLog := generateNewChangelogHead(currentVersion, newVersion, commitStats, &cfg, urlBase)
+		newChangeLog := generateNewChangelogHead(plan.current, plan.next, plan.stats, &cfg, plan.urlBase)
 		fmt.Println(newChangeLog.String())
 
 	case "add-hook":
@@ -185,21 +198,12 @@ func main() {
 	case "next-version":
 		cfg := fatalOnErr2(loadConfig(configFilename))
 
-		currentVersion := fatalOnErr2(getCurrentVersionByGitTag(cfg.VersionTagFormat))
-
-		curTag := versionToGitTag(currentVersion, cfg.VersionTagFormat)
-
-		commitStats := fatalOnErr2(processCommitMessages(curTag, cfg.IgnoreInvalidCommits, cfg.AllowedCommitKinds))
-
-		newVersion := currentVersion
-
-		if releaseType := commitStats.DetermineReleaseType(); releaseType != ReleaseTypeNone {
-			newVersion.IncrementTo(releaseType)
-		} else {
-			warnNoCommitsThatCanIncrementCurrentVersion()
+		plan := fatalOnErr2(planRelease(&cfg, bumpOpts))
+		if plan.releaseType == ReleaseTypeNone {
+			return
 		}
 
-		fmt.Println(newVersion.ToString())
+		fmt.Println(plan.next.ToString())
 
 	case "init-config":
 		defaultConfig := getDefaultConfig()
@@ -281,7 +285,8 @@ func printHelpAndExit() {
 
 Commands:
 
-  preview-changelog    show this release changelog (not writing to Changelog file
+  preview-changelog    show this release changelog (not writing to the
+                       Changelog file)
   add-hook             add Git hook to validate commit messages
   remove-hook          remove Git hook validating commit messages
   lint                 list commits violating Conventional Commits since last bump
@@ -299,7 +304,11 @@ Common options:
   -config filename  use another config filename instead of default
                     (default config name: bump-version.cfg)
   -force            suppress the prompts like "Are you sure you want to
-                    overwrite this file?"
+                    overwrite this file?" and the release confirmation
+  -dry-run          (bump) print the release plan and the changelog
+                    without changing anything
+  -type type        (bump) force the release type: major, minor, patch or
+                    prerelease; by default the type is derived from commits
 If no command is specified, the default command to run is bump.
 `, programName)
 

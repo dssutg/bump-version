@@ -64,6 +64,7 @@ func loadConfig(name string) (Config, error) {
 	}
 
 	// Read config from file
+	//nolint:gosec // the config file name comes from this program's own command line
 	cfgData, err := os.ReadFile(name)
 	if err != nil {
 		return Config{}, err

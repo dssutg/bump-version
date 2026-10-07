@@ -46,6 +46,7 @@ func generateChangelog(currentVersion, newVersion Version, commitStats CommitSta
 		newChangeLog.WriteByte('\n')
 
 		// Read old changelog file
+		//nolint:gosec // the changelog file name comes from this project's own config
 		changeLogFileContentBytes, err := os.ReadFile(cfg.ChangeLogFilename)
 		if err != nil {
 			return err
@@ -73,6 +74,7 @@ func generateChangelog(currentVersion, newVersion Version, commitStats CommitSta
 	}
 
 	// Write updated Changelog
+	//nolint:gosec // the changelog file name comes from this project's own config
 	if err := os.WriteFile(cfg.ChangeLogFilename, newChangeLog.Bytes(), 0o600); err != nil {
 		return err
 	}

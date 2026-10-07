@@ -11,6 +11,7 @@ const (
 	prereleaseRC0 = "1.2.3-rc.0"
 	prereleaseRC1 = "1.2.3-rc.1"
 	vTagFormat    = "v{version}"
+	relTagFormat  = "rel-{version}"
 )
 
 func mustParseVersion(t *testing.T, s string) Version {
@@ -284,7 +285,7 @@ func TestVersionToGitTag(t *testing.T) {
 	}{
 		{"v prefix", Version{Major: 1, Minor: 2, Patch: 3}, vTagFormat, "v1.2.3"},
 		{"bare version", Version{Major: 1, Minor: 2, Patch: 3}, versionTagFormatSubst, releaseVer},
-		{"custom prefix", Version{Major: 1, Minor: 2, Patch: 3}, "rel-{version}", "rel-1.2.3"},
+		{"custom prefix", Version{Major: 1, Minor: 2, Patch: 3}, relTagFormat, "rel-1.2.3"},
 		{
 			"prerelease version",
 			Version{Major: 4, Minor: 0, Patch: 0, Prerelease: "alpha.1"},
