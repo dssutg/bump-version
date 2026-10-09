@@ -543,7 +543,10 @@ func ensureShortCommitHash(hash string) string {
 }
 
 // tryParseReference parses a footer line of the form "Attribute: value"
-// into commit; lines without a colon are left alone.
+// into commit; lines without a colon are left alone. Only the Refs
+// attribute is meaningful to this tool, so any other line is treated as
+// ordinary body prose: it may legitimately contain a colon without a
+// following space (for example a bare `publish:dry` or `*:focus`).
 func tryParseReference(line string, commit *Commit) error {
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -555,12 +558,19 @@ func tryParseReference(line string, commit *Commit) error {
 		return nil
 	}
 
+	refsAttr := "Refs"
+
+	// Parse attribute name. Ignore every attribute that is not Refs:
+	// body prose frequently contains colons that do not start a footer.
+	attrName := line[:colonIndex]
+	if !strings.EqualFold(strings.TrimSpace(attrName), refsAttr) {
+		return nil
+	}
+
 	if HasLeadingWhitespace(line) || HasTrailingWhitespace(line) {
 		return fmt.Errorf("footer line attribute should not be enclosed with spaces: %s", line)
 	}
 
-	// Parse attribute name
-	attrName := line[:colonIndex]
 	if HasTrailingWhitespace(attrName) {
 		return fmt.Errorf("footer line attribute should not have spaces before colon: %s", line)
 	}
@@ -575,36 +585,32 @@ func tryParseReference(line string, commit *Commit) error {
 		return fmt.Errorf("footer line attribute value should not have spaces after colon with spaces: %s", line)
 	}
 
-	// Dispatch attribyte based on its name
-	refsAttr := "Refs"
-	if strings.EqualFold(attrName, refsAttr) {
-		if attrName != refsAttr {
-			return fmt.Errorf("attribute %s should have consistent case like this: %s", attrName, refsAttr)
-		}
+	if attrName != refsAttr {
+		return fmt.Errorf("attribute %s should have consistent case like this: %s", attrName, refsAttr)
+	}
 
-		hashListParts := strings.Split(attrValue, ",")
-		hashes := make([]string, 0, len(hashListParts))
-		for hashIndex, hashStr := range hashListParts {
-			if hashIndex != 0 {
-				if !strings.HasPrefix(hashStr, " ") {
-					return fmt.Errorf("hash list in attribute %s should be delimited by comma and a single space: %s", attrName, hashStr)
-				}
-				hashStr = hashStr[1:] // skip space
-			}
-			if HasLeadingWhitespace(hashStr) || HasTrailingWhitespace(hashStr) {
+	hashListParts := strings.Split(attrValue, ",")
+	hashes := make([]string, 0, len(hashListParts))
+	for hashIndex, hashStr := range hashListParts {
+		if hashIndex != 0 {
+			if !strings.HasPrefix(hashStr, " ") {
 				return fmt.Errorf("hash list in attribute %s should be delimited by comma and a single space: %s", attrName, hashStr)
 			}
-
-			hash, err := parseCommitHash(hashStr)
-			if err != nil {
-				return fmt.Errorf("invalid hash %s: %w", hashStr, err)
-			}
-
-			hashes = append(hashes, hash)
+			hashStr = hashStr[1:] // skip space
+		}
+		if HasLeadingWhitespace(hashStr) || HasTrailingWhitespace(hashStr) {
+			return fmt.Errorf("hash list in attribute %s should be delimited by comma and a single space: %s", attrName, hashStr)
 		}
 
-		commit.RefersTo = append(commit.RefersTo, hashes...)
+		hash, err := parseCommitHash(hashStr)
+		if err != nil {
+			return fmt.Errorf("invalid hash %s: %w", hashStr, err)
+		}
+
+		hashes = append(hashes, hash)
 	}
+
+	commit.RefersTo = append(commit.RefersTo, hashes...)
 
 	return nil
 }

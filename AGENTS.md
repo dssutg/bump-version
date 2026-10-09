@@ -19,8 +19,8 @@
 |---------|-------------|
 | `bump-version` | Default command — plans, confirms and applies the release (version, CHANGELOG, Git commit, annotated tag) |
 | `bump-version preview-changelog` | Show changelog without writing to file |
-| `bump-version add-hook` | Add Git pre-commit hook for commit message validation |
-| `bump-version remove-hook` | Remove Git pre-commit hook |
+| `bump-version add-hook` | Add Git commit-msg hook for commit message validation |
+| `bump-version remove-hook` | Remove Git commit-msg hook |
 | `bump-version lint` | Validate commits since last release |
 | `bump-version lint-all` | Validate all commits |
 | `bump-version lint-commit "message"` | Validate a single commit message |

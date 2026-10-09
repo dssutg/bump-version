@@ -128,6 +128,34 @@ func TestParseConventionalCommit_TableDriven(t *testing.T) {
 			want:         want{body: "this is the body line 1\nline 2", refersTo: []string{"0123456", "89abcde"}},
 		},
 		{
+			name: "colons without space in body prose",
+			message: strings.Join([]string{
+				"fix: stop the forms plugin from drawing a blue focus ring",
+				"",
+				"the browser renders: a white background, and a blue.600 box-shadow",
+				"publish:dry",
+				"focus ring that contradicts *:focus { outline: none }",
+			}, "\n"),
+			allowedKinds: []string{CommitKindFix},
+			want: want{
+				body: strings.Join([]string{
+					"the browser renders: a white background, and a blue.600 box-shadow",
+					"publish:dry",
+					"focus ring that contradicts *:focus { outline: none }",
+				}, "\n"),
+			},
+		},
+		{
+			name: "non refs colon line is ignored",
+			message: strings.Join([]string{
+				"fix: something broke",
+				"",
+				"Signed-off-by:someone",
+			}, "\n"),
+			allowedKinds: []string{CommitKindFix},
+			want:         want{body: "Signed-off-by:someone"},
+		},
+		{
 			name: "breaking in footer",
 			message: strings.Join([]string{
 				"feat: add x",

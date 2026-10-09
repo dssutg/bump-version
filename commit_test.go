@@ -101,6 +101,13 @@ func TestProcessCommitMessagesDeterminesReleaseTypes(t *testing.T) {
 		{"perf is patch", []string{"perf: speed up search"}, ReleaseTypePatch},
 		{"chore is none", []string{"chore: tidy up"}, ReleaseTypeNone},
 		{
+			"body colons are valid",
+			[]string{
+				"fix: repair the focus ring\n\nthe browser renders: a white background,\nand *:focus { outline: none } contradicted `publish:dry`",
+			},
+			ReleaseTypePatch,
+		},
+		{
 			"breaking footer is major",
 			[]string{"feat: add api\n\nelaborated details\n\nBREAKING CHANGE: api changed"},
 			ReleaseTypeMajor,

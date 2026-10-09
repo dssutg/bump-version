@@ -29,7 +29,7 @@ const programName = "bump-version"
 
 const gitCommand = "git"
 
-const preCommiHookPath = ".git/hooks/pre-commit"
+const commitMsgHookPath = ".git/hooks/commit-msg"
 
 // Program exit status codes.
 const (
@@ -129,16 +129,16 @@ func main() {
 		execPerm := os.FileMode(0o755)
 
 		// Create hooks directory if missing
-		if err := os.MkdirAll(filepath.Dir(preCommiHookPath), execPerm); err != nil {
+		if err := os.MkdirAll(filepath.Dir(commitMsgHookPath), execPerm); err != nil {
 			fatalf("could not create the directory for the hook: %v", err)
 		}
 
 		hookScript := fmt.Sprintf(`#!/bin/sh
-%s lint-commit "$COMMIT_MESSAGE"
+%s lint-commit "$(cat "$1")"
 `, programName)
 
 		// If the hook file already exists, ask the user to confirm overwriting it
-		if !forceMode && fileExists(preCommiHookPath) {
+		if !forceMode && fileExists(commitMsgHookPath) {
 			question := "The hook file already exists. Do you want to overwrite it?"
 			if !askYesNo(os.Stdin, os.Stdout, question, false) {
 				fmt.Println("Canceled.")
@@ -147,19 +147,19 @@ func main() {
 		}
 
 		// Write the hook file
-		if err := os.WriteFile(preCommiHookPath, []byte(hookScript), execPerm); err != nil {
+		if err := os.WriteFile(commitMsgHookPath, []byte(hookScript), execPerm); err != nil {
 			fatalf("could not write the hook file: %v", err)
 		}
 
 		// Ensure executable permission
-		if err := os.Chmod(preCommiHookPath, execPerm); err != nil {
+		if err := os.Chmod(commitMsgHookPath, execPerm); err != nil {
 			fatalf("could not ensure the hook is executable: %v", err)
 		}
 
 		fmt.Println(paint(colorEnabled(os.Stdout), ansiGreen, "Git Hook added"))
 
 	case "remove-hook":
-		if err := os.RemoveAll(preCommiHookPath); err != nil {
+		if err := os.RemoveAll(commitMsgHookPath); err != nil {
 			fatalf("could not remove the hook file: %v", err)
 		}
 
