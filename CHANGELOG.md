@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.1.0](https://github.com/dssutg/bump-version/compare/v2.0.0...v2.1.0) (2026-10-09)
+
+
+### Features
+
+* **release:** optionally bump package.json version [5ac7cab](https://github.com/dssutg/bump-version/commit/5ac7cabddb1fc6802b499ba6b1784a10851da5e2)
+
+
+### Chores
+
+* add repomap to gitignore [bdf5877](https://github.com/dssutg/bump-version/commit/bdf58778613e9bc2b85b8cb57fbdcb8d76396cce)
+
 ## [2.0.0](https://github.com/dssutg/bump-version/compare/v1.0.0...v2.0.0) (2026-10-09)
 
 
@@ -105,6 +117,7 @@
 
 
 * add the initial implementation of the utility ac773e5
+
 
 
 
