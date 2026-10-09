@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/dssutg/bump-version/compare/v2.1.0...v2.1.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* accept colons in body prose and install a working commit-msg hook [72adcdc](https://github.com/dssutg/bump-version/commit/72adcdce82089700b300ac30743731d3e3668251)
+
 ## [2.1.0](https://github.com/dssutg/bump-version/compare/v2.0.0...v2.1.0) (2026-10-09)
 
 
@@ -117,6 +124,7 @@
 
 
 * add the initial implementation of the utility ac773e5
+
 
 
 
