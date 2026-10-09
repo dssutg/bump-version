@@ -331,6 +331,9 @@ bump-version -force init-config
 
 - `version` — версия файла конфигурации.
 - `versionFilenames` — имена файлов-версий, разделенные запятой.
+- `packageJSONFilename` — необязательное имя файла `package.json`, в котором при
+  выпуске версии обновляется поле `version` верхнего уровня; остальное содержимое
+  файла сохраняется (по умолчанию пусто: отключено).
 - `changeLogFilename` — имя файла ChangeLog.
 - `ignoreInvalidCommits` — игнорировать неверные коммиты (не выпадать с ошибкой).
 - `versionTagFormat` — формат тэгов версии для Git. Подстрока `{version}` подставляется

@@ -32,6 +32,7 @@ func TestLoadConfigFullParse(t *testing.T) {
 version=2.3.4
 
 versionFilenames=a.txt, b.txt
+packageJSONFilename=web/package.json
 changeLogFilename=HISTORY.md
 ignoreInvalidCommits=true
 versionTagFormat=rel-{version}
@@ -53,6 +54,9 @@ shouldPushToOrigin=true
 	}
 	if want := []string{"a.txt", "b.txt"}; !reflect.DeepEqual(cfg.VersionFilenames, want) {
 		t.Errorf("VersionFilenames = %q, want %q", cfg.VersionFilenames, want)
+	}
+	if cfg.PackageJSONFilename != "web/package.json" {
+		t.Errorf("PackageJSONFilename = %q, want %q", cfg.PackageJSONFilename, "web/package.json")
 	}
 	if cfg.ChangeLogFilename != "HISTORY.md" {
 		t.Errorf("ChangeLogFilename = %q, want %q", cfg.ChangeLogFilename, "HISTORY.md")
@@ -141,6 +145,7 @@ func TestSaveLoadConfigRoundtrip(t *testing.T) {
 	cfg := getDefaultConfig()
 	cfg.Version = "3.2.1"
 	cfg.VersionFilenames = []string{"a.txt", "b.txt"}
+	cfg.PackageJSONFilename = "package.json"
 	cfg.ChangeLogFilename = "HISTORY.md"
 	cfg.IgnoreInvalidCommits = true
 	cfg.VersionTagFormat = relTagFormat

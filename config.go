@@ -15,6 +15,7 @@ const (
 type Config struct {
 	Version              string
 	VersionFilenames     []string
+	PackageJSONFilename  string
 	ChangeLogFilename    string
 	IgnoreInvalidCommits bool
 	VersionTagFormat     string
@@ -28,6 +29,7 @@ func getDefaultConfig() Config {
 	return Config{
 		Version:              "1.0.0",
 		VersionFilenames:     []string{},
+		PackageJSONFilename:  "",
 		ChangeLogFilename:    "CHANGELOG.md",
 		IgnoreInvalidCommits: false,
 		VersionTagFormat:     "v{version}",
@@ -103,6 +105,8 @@ func loadConfig(name string) (Config, error) {
 			for i := range cfg.VersionFilenames {
 				cfg.VersionFilenames[i] = strings.TrimSpace(cfg.VersionFilenames[i])
 			}
+		case "packageJSONFilename":
+			cfg.PackageJSONFilename = value
 		case "changeLogFilename":
 			cfg.ChangeLogFilename = value
 		case "ignoreInvalidCommits":
@@ -140,6 +144,7 @@ func saveConfig(configFilename string, config Config, perm os.FileMode) error {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "version=%s\n", config.Version)
 	fmt.Fprintf(&b, "versionFilenames=%s\n", strings.Join(config.VersionFilenames, ","))
+	fmt.Fprintf(&b, "packageJSONFilename=%s\n", config.PackageJSONFilename)
 	fmt.Fprintf(&b, "changeLogFilename=%s\n", config.ChangeLogFilename)
 	fmt.Fprintf(&b, "ignoreInvalidCommits=%t\n", config.IgnoreInvalidCommits)
 	fmt.Fprintf(&b, "versionTagFormat=%s\n", config.VersionTagFormat)

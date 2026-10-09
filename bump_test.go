@@ -103,6 +103,72 @@ func TestBumpVersionSuccess(t *testing.T) {
 }
 
 //nolint:paralleltest // t.Chdir changes the process working directory
+func TestBumpVersionUpdatesPackageJSON(t *testing.T) {
+	initGitTestRepo(t)
+
+	pkgJSON := "{\n  \"name\": \"app\",\n  \"version\": \"1.0.0\"\n}\n"
+	if err := os.WriteFile("package.json", []byte(pkgJSON), 0o600); err != nil {
+		t.Fatalf("could not write package.json: %v", err)
+	}
+	runGitCommand(t, "add", "package.json")
+	commitTestMessage(t, initialCommitMsg)
+	runGitCommand(t, "tag", tagV100)
+	commitTestMessage(t, featWidgetMsg)
+
+	cfg := getDefaultConfig()
+	cfg.PackageJSONFilename = "package.json"
+
+	opts := bumpOptions{Force: true, Stdin: strings.NewReader(""), Stdout: io.Discard}
+
+	if err := bumpVersion(&cfg, opts); err != nil {
+		t.Fatalf("bumpVersion() returned error: %v", err)
+	}
+
+	data, err := os.ReadFile("package.json")
+	if err != nil {
+		t.Fatalf("could not read package.json: %v", err)
+	}
+	if !strings.Contains(string(data), `"version": "1.1.0"`) {
+		t.Errorf("package.json misses the new version:\n%s", data)
+	}
+	if strings.Contains(string(data), `"version": "1.0.0"`) {
+		t.Errorf("package.json still holds the old version:\n%s", data)
+	}
+	if got := strings.TrimSpace(runGitCommand(t, "status", "--porcelain")); got != "" {
+		t.Errorf("worktree is not clean after the release: %q", got)
+	}
+}
+
+//nolint:paralleltest // t.Chdir changes the process working directory
+func TestBumpVersionLeavesPackageJSONWhenDisabled(t *testing.T) {
+	initGitTestRepo(t)
+
+	pkgJSON := "{\n  \"name\": \"app\",\n  \"version\": \"1.0.0\"\n}\n"
+	if err := os.WriteFile("package.json", []byte(pkgJSON), 0o600); err != nil {
+		t.Fatalf("could not write package.json: %v", err)
+	}
+	runGitCommand(t, "add", "package.json")
+	commitTestMessage(t, initialCommitMsg)
+	runGitCommand(t, "tag", tagV100)
+	commitTestMessage(t, featWidgetMsg)
+
+	cfg := getDefaultConfig()
+	opts := bumpOptions{Force: true, Stdin: strings.NewReader(""), Stdout: io.Discard}
+
+	if err := bumpVersion(&cfg, opts); err != nil {
+		t.Fatalf("bumpVersion() returned error: %v", err)
+	}
+
+	data, err := os.ReadFile("package.json")
+	if err != nil {
+		t.Fatalf("could not read package.json: %v", err)
+	}
+	if string(data) != pkgJSON {
+		t.Errorf("package.json changed although the feature is disabled:\n%s", data)
+	}
+}
+
+//nolint:paralleltest // t.Chdir changes the process working directory
 func TestBumpVersionDryRun(t *testing.T) {
 	prepareReleaseRepo(t, tagV100, featWidgetMsg)
 

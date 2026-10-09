@@ -326,6 +326,9 @@ Config file fields:
 
 - `version` — configuration file version.
 - `versionFilenames` — comma-separated names of the version files.
+- `packageJSONFilename` — optional name of a `package.json` whose top-level
+  `version` field is updated on release, preserving the rest of the file
+  (default empty: disabled).
 - `changeLogFilename` — name of the ChangeLog file.
 - `ignoreInvalidCommits` — ignore invalid commits (do not fail on them).
 - `versionTagFormat` — Git tag format for releases. Substitution `{version}`

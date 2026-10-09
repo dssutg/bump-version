@@ -11,6 +11,7 @@
 //     the Git history.
 //   - changelog.go: changelog rendering, remote compare links and
 //     credential stripping.
+//   - packagejson.go: optional package.json "version" field bump.
 //   - config.go: bump-version.cfg parsing, defaults and validation.
 //   - color.go: POSIX terminal color detection and painting.
 //   - utils.go: Git helpers, prompting and process exit helpers.
@@ -242,19 +243,22 @@ func main() {
 		cfg := fatalOnErr2(loadConfig(configFilename))
 		versionTag := fatalOnErr2(getCurrentVersionTag())
 
+		// Files changed by the release that have to be restored
+		restoreFiles := append([]string{cfg.ChangeLogFilename}, cfg.VersionFilenames...)
+		if cfg.PackageJSONFilename != "" {
+			restoreFiles = append(restoreFiles, cfg.PackageJSONFilename)
+		}
+
 		commands := [][]string{
 			// Undo the last commit
 			{gitCommand, "reset", "--mixed", "HEAD~1"},
 
 			// Remove the newest version tag
 			{gitCommand, "tag", "-d", versionTag},
-
-			// Remove the recent changes made to the Changelog
-			{gitCommand, "restore", cfg.ChangeLogFilename},
 		}
 
-		// Add the commands to remove the recent changes made to the version files
-		for _, filename := range cfg.VersionFilenames {
+		// Remove the recent changes made to the Changelog and the version files
+		for _, filename := range restoreFiles {
 			commands = append(commands, []string{gitCommand, "restore", filename})
 		}
 

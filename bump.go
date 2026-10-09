@@ -168,9 +168,15 @@ func applyReleasePlan(cfg *Config, plan releasePlan, stdout io.Writer) error {
 		}
 	}
 
-	gitAddArgs := make([]string, 0, 2+len(cfg.VersionFilenames))
-	gitAddArgs = append(gitAddArgs, "add", "--", cfg.ChangeLogFilename)
-	gitAddArgs = append(gitAddArgs, cfg.VersionFilenames...)
+	filesToAdd := append([]string{cfg.ChangeLogFilename}, cfg.VersionFilenames...)
+	if cfg.PackageJSONFilename != "" {
+		if err := updatePackageJSONVersion(cfg.PackageJSONFilename, newVersionStr); err != nil {
+			return err
+		}
+		filesToAdd = append(filesToAdd, cfg.PackageJSONFilename)
+	}
+
+	gitAddArgs := append([]string{"add", "--"}, filesToAdd...)
 	if _, errOut, err := getCommandOutput(gitCommand, gitAddArgs...); err != nil {
 		return fmt.Errorf("error staging files to Git: %s", errOut)
 	}
