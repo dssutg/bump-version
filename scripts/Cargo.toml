@@ -1,0 +1,12 @@
+[package]
+name = "bump-version-scripts"
+# Kept in sync with the VERSION file (the embedded source of truth).
+version = "2.1.1"
+edition = "2024"
+
+[dependencies]
+serde_json = "1.0" # to read cargo's build messages
+
+[[bin]]
+name = "bump-version-scripts"
+path = "main.rs"

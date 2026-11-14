@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-*bump-version* — A Go CLI tool for automating:
+*bump-version* — A CLI tool for automating:
 - Semantic Versioning
 - Changelog generation
 - Conventional Commits validation
@@ -10,8 +10,8 @@
 
 ## Language & Framework
 
-- **Language:** Go 1.26
-- **Build:** `cd scripts && go run . build` (outputs to `build/` directory)
+- **Language:** Rust (edition 2024); JSON handling uses `serde_json`
+- **Build:** `cd scripts && cargo run -- build` (outputs to `build/` directory)
 
 ## Commands
 
@@ -31,10 +31,24 @@
 | `bump-version version` | Show tool version |
 
 **Options:**
-- `-config <filename>` — Use custom config file (default: `bump-version.cfg`)
+- `-config <filename>` — Use custom config file (default: `bump-version.cfg`), before the command
 - `-force` — Suppress confirmation prompts (overwrite prompts and the release confirmation; required for non-interactive releases)
 - `-dry-run` — (bump) Print the release plan and changelog, then exit without changing anything
 - `-type <major|minor|patch|prerelease>` — (bump) Force the release type instead of deriving it from commits
+
+## Codebase Map
+
+- `src/main.rs` — CLI entry point, option and command dispatch, help.
+- `src/bump.rs` — release planning and the guards around applying a release.
+- `src/version.rs` — strict SemVer parsing, incrementing, comparison and tag formats.
+- `src/commit.rs` — Conventional Commits parsing and release statistics from the Git history.
+- `src/changelog.rs` — changelog rendering, remote compare links and credential stripping.
+- `src/package_json.rs` — optional package.json "version" field bump (serde_json).
+- `src/config.rs` — bump-version.cfg parsing, defaults and validation.
+- `src/color.rs` — POSIX terminal color detection and painting.
+- `src/utils.rs` — Git helpers, prompting and process exit helpers.
+- `src/error.rs` — the shared error type.
+- `scripts/main.rs` — build/clean/check driver for the whole workspace.
 
 ## Version Bumping Logic
 
@@ -58,6 +72,7 @@ Before applying a release the tool prints the plan (type, version, tag, changelo
 ## Verification
 
 Run before submitting:
-- `gofumpt -l .` (must print nothing) and `golangci-lint run` (must report 0 findings)
-- `go test ./...` (optionally add `-race`)
-- or everything in one go: `cd scripts && go run . check`
+- `cargo fmt --all -- --check` (must report nothing to reformat)
+- `cargo clippy --workspace --all-targets -- -D warnings` (must report 0 warnings)
+- `cargo test --workspace` (git is required; tests run in throwaway repositories)
+- or everything in one go: `cd scripts && cargo run -- check`

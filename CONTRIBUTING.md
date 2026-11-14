@@ -14,47 +14,52 @@ Contact the maintainers with questions not answered here:
 
 ## Stack
 
-- Go 1.26 or newer
+- Rust via [rustup](https://rustup.rs) (stable toolchain, edition 2024)
 
 Optional tools:
 
-- golangci-lint (Go linter)
-- gofumpt (Go formatter)
+- rustfmt (formatter, ships with rustup)
+- clippy (linter, ships with rustup)
+- extra cross targets for release builds (`rustup target add <triple>`)
 
 ## Languages
 
 This project supports both English and Russian for documentation.
 
-For code, use only Go. This keeps the project consistent.
+For code, use only Rust. This keeps the project consistent.
 
 ## Distribution
 
-Keep distribution simple with no installation required. Only use Go and link binaries statically.
+Keep distribution simple with no installation required. Only use Rust and ship self-contained binaries.
 
 ## Before submitting
 
 Run the combined check (formatting, linting, tests):
 
 ```bash
-cd scripts && go run . check
+cd scripts && cargo run -- check
 ```
 
-Or run the steps individually: `gofumpt -l .` (no output), `golangci-lint run` (0 findings), `go test ./...`.
+Or run the steps individually: `cargo fmt --all -- --check` (clean), `cargo clippy --workspace --all-targets -- -D warnings` (0 warnings), `cargo test --workspace`.
+
+Git must be available; the tests exercise release flows in throwaway Git repositories.
 
 ## Questions and Answers
 
 ### Why are there no shell scripts or Makefiles?
 
-Everything is written in Go, including scripts. Introducing another language adds platform dependency and complexity. Go scripts are portable, reliable, and readable.
+Everything is written in Rust, including scripts. Introducing another language adds platform dependency and complexity. Cargo is portable, reliable, and readable.
 
-The `scripts/` directory contains all project scripts. Build with:
+The `scripts/` directory contains all project scripts (as a plain Rust binary). Build with:
 
 ```bash
-cd scripts && go run . build
+cd scripts && cargo run -- build
 ```
 
-Go's build cache makes incremental builds fast. No Makefile is needed.
+Cargo's incremental compilation makes repeated builds fast. No Makefile is needed.
+
+Release artifacts for the four published platforms are built when their target toolchains are installed (`rustup target add x86_64-apple-darwin`, etc.); `build` skips missing targets with a hint.
 
 ### Can I use library X?
 
-No. This project avoids third-party dependencies to prevent dependency hell. Use only the Go standard library.
+No, with one exception: the single JSON dependency (`serde_json`) that the `package.json` bump is built on. Everything else uses the Rust standard library.

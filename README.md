@@ -42,7 +42,7 @@ This is a [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) p
 
 ## Supported platforms
 
-The utility is written in Go and compiles anywhere there is a Go compiler.
+The utility is written in Rust and compiles anywhere there is a Rust toolchain (see https://rustup.rs).
 
 After building, the `build/` directory contains the expected files:
 
@@ -51,25 +51,27 @@ After building, the `build/` directory contains the expected files:
 - `macos-arm64/bump-version` — macOS (ARM64)
 - `windows-amd64/bump-version.exe` — Microsoft Windows (x86_64)
 
+Cross targets have to be installed once (`rustup target add <triple>`); `build` skips the ones that are missing with a hint.
+
 ---
 
 ## Installation and build
 
 ### How to build the utility
 
-- Install the latest Go compiler from the official site https://go.dev/dl.
+- Install the Rust toolchain via rustup: https://rustup.rs.
 - Change to the project root directory from the command line.
 - Run:
 
 ```bash
-cd scripts && go run . build && cd ..
+cd scripts && cargo run -- build && cd ..
 ```
 
 After that, compiled artifacts for supported platforms will appear in the `build/` directory.
 
 ### How to install the utility
 
-The utility is statically built and has no runtime dependencies, so installation is simple:
+The utility is statically built and has no runtime dependencies (Git must be installed separately), so installation is simple:
 
 - Copy the compiled binary to any directory available in PATH (for example `/usr/local/bin/` on Unix-like systems or `C:\Program Files\bump-version\` on Windows).
 - If necessary, add the directory with the binary to your PATH environment variable.
@@ -274,7 +276,7 @@ bump-version version
 
 - Use a different config file:
 ```bash
-bump-version command -config other-bump-version-config.cfg
+bump-version -config other-bump-version-config.cfg preview-changelog
 ```
 
 - Add a config file `bump-version.cfg` to the project root:
