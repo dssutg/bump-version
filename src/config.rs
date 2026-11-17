@@ -134,12 +134,14 @@ pub fn load_config(repo: &Path, name: Option<&str>) -> Result<Config> {
 }
 
 /// Splits a comma-separated config list into trimmed items. An empty value
-/// yields no items.
+/// yields no items, and so do empty items between the commas.
 fn split_list(value: &str) -> Vec<String> {
-    if value.is_empty() {
-        return Vec::new();
-    }
-    value.split(',').map(str::trim).map(str::to_owned).collect()
+    value
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 /// save_config serialises config as key=value lines and writes them to

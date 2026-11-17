@@ -149,3 +149,30 @@ fn load_config_empty_list_yields_no_items() {
         cfg.allowed_commit_kinds
     );
 }
+
+/// Empty items inside a list — a bare comma or two commas around an item —
+/// must not reach the version-file writer as an empty filename either.
+#[test]
+fn load_config_empty_items_in_list_yield_no_items() {
+    let dir = TempDir::new("config-empty-items");
+    let path = dir.path().join(DEFAULT_CONFIG_FILENAME);
+    std::fs::write(
+        &path,
+        "versionFilenames=, a.txt , , b.txt,\nallowedCommitKinds= feat,, fix ,\n",
+    )
+    .expect("could not write config");
+
+    let cfg = load(dir.path(), None).expect("loadConfig() must succeed");
+    assert_eq!(
+        cfg.version_filenames,
+        ["a.txt", "b.txt"],
+        "versionFilenames = {:?}",
+        cfg.version_filenames
+    );
+    assert_eq!(
+        cfg.allowed_commit_kinds,
+        [KIND_FEAT.to_owned(), KIND_FIX.to_owned()],
+        "allowedCommitKinds = {:?}",
+        cfg.allowed_commit_kinds
+    );
+}
